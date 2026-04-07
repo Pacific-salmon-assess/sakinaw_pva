@@ -736,3 +736,10 @@ for(i in 1:n.sims){
   
   sims4[[i]]=sim.dat #store simulation
 }
+
+#summary of each scenario
+summary(sim.summary1) #baseline
+summary(sim.summary2) #all natural
+summary(sim.summary3) #broodtake
+summary(sim.summary4) #double hatchery
+
