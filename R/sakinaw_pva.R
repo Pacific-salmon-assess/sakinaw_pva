@@ -1,4 +1,5 @@
 #Sakinaw Sockeye - PVA
+source('./R/funcs.R')
 
 #sections 1-4: simulating conditions check
 #smolt-spawner curve
@@ -27,7 +28,10 @@ plot(R~S,smolt_bt,type='n',xlab='Total Spawners',ylab='Natural Origin Smolts')
 lines(R~S,lwd=0.5,col=adjustcolor('darkgray',alpha.f = 0.5),data=smolt_bt)
 lines(sm_pred~s_pred,lwd=2)
 points(R~S,pch=21,cex=1.5,data=smolt_bt)
-#text(x=smolt_bt$S*0.98,y=smolt_bt$R*1.08,smolt_bt$by,cex=0.7)
+text(x=smolt_bt$S-10,y=smolt_bt$R*1.02,smolt_bt$by,cex=0.7)
+
+mu.ric=smolt_ric$sd_report$par.fixed #mean parameter estimates
+vcov.ric=smolt_ric$sd_report$cov.fixed #variance-covariance of parameter estimates
 
 #Marine survival####
 data=read.csv('./data/sakinaw_abundances.csv')
@@ -37,14 +41,14 @@ survivals=data[,14:16]
 surv.cor=cor(survivals,use='pairwise.complete.obs')
 surv.sd=apply(survivals,2,sd,na.rm=T)
 surv.mean=apply(survivals,2,mean,na.rm=T)
-sd.log.surv=sqrt(log(1+(surv.sd/surv.mean)^2))
-mu.log.surv=log(surv.mean)-0.5*sd.log.surv^2
+log.surv.sd=sqrt(log(1+(surv.sd/surv.mean)^2))
+mu.log.surv=log(surv.mean)-0.5*log.surv.sd^2
 
 #variance-covariance matrix for wild/hatchery/mixed marine survival
 surv.mat=matrix(ncol=3,nrow=3)
-surv.mat[1,1]=log.surv.sd[1]
-surv.mat[2,2]=log.surv.sd[2]
-surv.mat[3,3]=log.surv.sd[3]
+surv.mat[1,1]=sd.log.surv[1]
+surv.mat[2,2]=sd.log.surv[2]
+surv.mat[3,3]=sd.log.surv[3]
 surv.mat[1,2]=surv.cor[1,2]*log.surv.sd[1]*log.surv.sd[2]
 surv.mat[2,1]=surv.cor[1,2]*log.surv.sd[1]*log.surv.sd[2]
 surv.mat[1,3]=surv.cor[1,3]*log.surv.sd[1]*log.surv.sd[3]
@@ -103,19 +107,19 @@ d.w=density(ms.dists[,3],bw=0.05)
 
 plot(d.h$y~d.h$x,type='l',col='darkred',lwd=2,yaxt='n',ylab='',xlim=c(0,1),xlab='Simulated Distribution of Marine Survival (%)')
 lines(d.w$y~d.w$x,lwd=2,col='turquoise4')
-lines(d.u$y~d.m$x,lwd=2,col='purple4')
+lines(d.u$y~d.u$x,lwd=2,col='purple4')
 
 #hatchery vs wild survival
 plot(log10(ms.dists[,1])~log10(ms.dists[,3]),ylab='',xlab='',xlim=c(-2,0.8),ylim=c(-2,0.8),yaxt='n',xaxt='n')
 axis(side=1,at=c(-2,-1,0,log10(3)),labels=c(10^-2,10^-1,10^0,3))
 axis(side=2,at=c(-2,-1,0,log10(3)),labels=c(10^-2,10^-1,10^0,3))
-mtext(side=1,'Wild-origin Marine Survival (%)',col='turquoise4',line=2.5)
-mtext(side=2,'Hatchery-origin Marine Survival (%)',col='darkred',line=2.5)
+mtext(side=1,'Simulated Natural-origin Marine Survival (%)',col='turquoise4',line=2.5)
+mtext(side=2,'Simulated Hatchery-origin Marine Survival (%)',col='darkred',line=2.5)
 
 #Fry and Smolt releases####
 #fry release
 total.fry=apply(data[,7:8],1,sum,na.rm = TRUE)
-total.fry=total_fry[total_fry>0]
+total.fry=total.fry[total.fry>0]
 
 sd.fry=sd(total.fry)
 mu.fry=mean(total.fry)
@@ -144,7 +148,7 @@ mu.fry.surv #empirical mean
 
 #steps 1b: smolt releases + survival to emigration
 total.smolts=data$smolt_cnt_release_clipped
-total.smolts=total_smolts[complete.cases(total_smolts)]
+total.smolts=total.smolts[complete.cases(total.smolts)]
 
 mu.smolts=mean(total.smolts)
 sd.smolts=sd(total.smolts)
@@ -160,7 +164,7 @@ sd.smolt.surv=sd(data$smolt_release_emig_survival/100,na.rm=T)
 mu.logit.smolt.surv=mean(qlogis(data$smolt_release_emig_survival/100),na.rm=T)
 sd.logit.smolt.surv=sd(qlogis(data$smolt_release_emig_survival/100),na.rm=T)
 
-mean(plogis(rnorm(1000,logit.mu.smolt.surv,logit.sd.smolt.surv)))
+mean(plogis(rnorm(1000,mu.logit.smolt.surv,sd.logit.smolt.surv)))
 
 
 
@@ -169,7 +173,7 @@ mean(plogis(rnorm(1000,logit.mu.smolt.surv,logit.sd.smolt.surv)))
 sims1=list()
 n.sims=500
 sim.length=24
-sim.summary1=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA)
+sim.summary1=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA,extinct=NA)
 for(i in 1:n.sims){
   sim.dat=data.frame(sim.year=seq(1:c(sim.length+2)),spawners.t=0,spawners.u=0,spawners.c=0,spawners.n=c(rep(NA,3),rep(0,sim.length-1)),smolts.u=NA,smolts.c=NA,smolts.n=NA,ms.h=NA,ms.u=NA,ms.n=NA,fry.rel.u=NA,fry.rel.c=NA,smolt.rel.c=NA,fry.surv=NA,smolt.surv=NA,ricker.logrs=NA,ricker.mu=NA,ricker.eps=NA)
   #first X years - estimate returns based on known quantities in the last several years
@@ -294,12 +298,13 @@ for(i in 1:n.sims){
     }
   }
   sim.dat=sim.dat[1:c(sim.length+2),] #trim extra brood years
-  sim.summary1[i,2]=sum(sim.dat[3:c(sim.length+2),2]>500)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary1[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary1[i,4]=sum(sim.dat[3:c(sim.length+2),2]>100)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary1[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary1[i,6]=exp(mean(log(sim.dat[3:c(sim.length+2),2])))
+  sim.summary1[i,2]=sum(sim.dat[5:c(sim.length+2),2]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary1[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary1[i,4]=sum(sim.dat[5:c(sim.length+2),2]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary1[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary1[i,6]=exp(mean(log(sim.dat[5:c(sim.length+2),2])))
   sim.summary1[i,7]=exp(mean(log(sim.dat[5:c(sim.length+2),5])))
+  sim.summary1[i,8]=ifelse(all(sim.dat[c(sim.length+2-4):c(sim.length+2),2]==0),1,0)
   
   sims1[[i]]=sim.dat #store simulation
 }
@@ -308,7 +313,7 @@ for(i in 1:n.sims){
 sims2=list()
 n.sims=500
 sim.length=24
-sim.summary2=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA)
+sim.summary2=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA,extinct=NA)
 for(i in 1:n.sims){
   sim.dat=data.frame(sim.year=seq(1:c(sim.length+2)),spawners.t=0,spawners.u=0,spawners.c=0,spawners.n=c(rep(NA,3),rep(0,sim.length-1)),smolts.u=NA,smolts.c=NA,smolts.n=NA,ms.h=NA,ms.u=NA,ms.n=NA,fry.rel.u=NA,fry.rel.c=NA,smolt.rel.c=NA,fry.surv=NA,smolt.surv=NA,ricker.logrs=NA,ricker.mu=NA,ricker.eps=NA)
   #first X years - estimate returns based on known quantities in the last several years
@@ -432,12 +437,13 @@ for(i in 1:n.sims){
     }
   }
   sim.dat=sim.dat[1:c(sim.length+2),] #trim extra brood years
-  sim.summary2[i,2]=sum(sim.dat[3:c(sim.length+2),2]>500)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary2[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary2[i,4]=sum(sim.dat[3:c(sim.length+2),2]>100)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary2[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary2[i,6]=exp(mean(log(sim.dat[3:c(sim.length+2),2])))
+  sim.summary2[i,2]=sum(sim.dat[5:c(sim.length+2),2]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary2[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary2[i,4]=sum(sim.dat[5:c(sim.length+2),2]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary2[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary2[i,6]=exp(mean(log(sim.dat[5:c(sim.length+2),2])))
   sim.summary2[i,7]=exp(mean(log(sim.dat[5:c(sim.length+2),5])))
+  sim.summary2[i,8]=ifelse(all(sim.dat[c(sim.length+2-4):c(sim.length+2),2]==0),1,0)
   
   sims2[[i]]=sim.dat #store simulation
 }
@@ -446,7 +452,7 @@ for(i in 1:n.sims){
 sims3=list()
 n.sims=500
 sim.length=24
-sim.summary3=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA)
+sim.summary3=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA,extinct=NA)
 for(i in 1:n.sims){
   sim.dat=data.frame(sim.year=seq(1:c(sim.length+2)),spawners.t=0,spawners.u=0,spawners.c=0,spawners.n=c(rep(NA,3),rep(0,sim.length-1)),smolts.u=NA,smolts.c=NA,smolts.n=NA,ms.h=NA,ms.u=NA,ms.n=NA,fry.rel.u=NA,fry.rel.c=NA,smolt.rel.c=NA,fry.surv=NA,smolt.surv=NA,ricker.logrs=NA,ricker.mu=NA,ricker.eps=NA,broodtake=NA,spawners.r=NA,total.eggs=NA,egg.surv=NA)
   #first X years - estimate returns based on known quantities in the last several years
@@ -540,7 +546,7 @@ for(i in 1:n.sims){
       #broodtake - estimate eggs from broodtake and survival to fry
       # broodtake x fixed sex ratio of 50% x randomized eggs per female (mean = 2050, sd = 250)
       sim.dat[t,22]=sim.dat[t,20]*0.5*rnorm(1,2050,250) #total eggs
-      sim.dat[t,23]=plogis(rnorm(1,1.26,0.5)) #egg-to-fry survival (mean = 78% logit(1.26), sd is guess-timated)
+      sim.dat[t,23]=plogis(rnorm(1,1.26,0.2)) #egg-to-fry survival (mean = 78% logit(1.26), sd is guess-timated)
       
       #fry releases - total fry releases x allocation to clipped/unclipped status
       total_fry.t=sim.dat[t,22]*sim.dat[t,23] #total-fry is now total eggs from broodtake x egg survival
@@ -582,12 +588,13 @@ for(i in 1:n.sims){
     }
   }
   sim.dat=sim.dat[1:c(sim.length+2),] #trim extra brood years
-  sim.summary3[i,2]=sum(sim.dat[3:c(sim.length+2),2]>500)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary3[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary3[i,4]=sum(sim.dat[3:c(sim.length+2),2]>100)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary3[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary3[i,6]=exp(mean(log(sim.dat[3:c(sim.length+2),2])))
+  sim.summary3[i,2]=sum(sim.dat[5:c(sim.length+2),2]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary3[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary3[i,4]=sum(sim.dat[5:c(sim.length+2),2]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary3[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary3[i,6]=exp(mean(log(sim.dat[5:c(sim.length+2),2])))
   sim.summary3[i,7]=exp(mean(log(sim.dat[5:c(sim.length+2),5])))
+  sim.summary3[i,8]=ifelse(all(sim.dat[c(sim.length+2-4):c(sim.length+2),2]==0),1,0)
   
   sims3[[i]]=sim.dat #store simulation
 }
@@ -602,7 +609,7 @@ exp(mu.log.fry)
 sims4=list()
 n.sims=500
 sim.length=24
-sim.summary4=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA)
+sim.summary4=data.frame(sim.id=seq(1:n.sims),py.tspwn.500=NA,py.nspwn.500=NA,py.tspwn.100=NA,py.nspwn.100=NA,m.tspwn=NA,m.nspwn=NA,extinct=NA)
 for(i in 1:n.sims){
   sim.dat=data.frame(sim.year=seq(1:c(sim.length+2)),spawners.t=0,spawners.u=0,spawners.c=0,spawners.n=c(rep(NA,3),rep(0,sim.length-1)),smolts.u=NA,smolts.c=NA,smolts.n=NA,ms.h=NA,ms.u=NA,ms.n=NA,fry.rel.u=NA,fry.rel.c=NA,smolt.rel.c=NA,fry.surv=NA,smolt.surv=NA,ricker.logrs=NA,ricker.mu=NA,ricker.eps=NA)
   #first X years - estimate returns based on known quantities in the last several years
@@ -727,19 +734,132 @@ for(i in 1:n.sims){
     }
   }
   sim.dat=sim.dat[1:c(sim.length+2),] #trim extra brood years
-  sim.summary4[i,2]=sum(sim.dat[3:c(sim.length+2),2]>500)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary4[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary4[i,4]=sum(sim.dat[3:c(sim.length+2),2]>100)/sim.length #for simulated part of series - proportion of years where total spawners > 500
-  sim.summary4[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/c(sim.length-2) #for simulated part of series - proportion of years where natural origin spawners > 500
-  sim.summary4[i,6]=exp(mean(log(sim.dat[3:c(sim.length+2),2])))
+  sim.summary4[i,2]=sum(sim.dat[5:c(sim.length+2),2]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary4[i,3]=sum(sim.dat[5:c(sim.length+2),5]>500)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary4[i,4]=sum(sim.dat[5:c(sim.length+2),2]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where total spawners > 500
+  sim.summary4[i,5]=sum(sim.dat[5:c(sim.length+2),5]>100)/length(5:c(sim.length+2)) #for simulated part of series - proportion of years where natural origin spawners > 500
+  sim.summary4[i,6]=exp(mean(log(sim.dat[5:c(sim.length+2),2])))
   sim.summary4[i,7]=exp(mean(log(sim.dat[5:c(sim.length+2),5])))
+  sim.summary4[i,8]=ifelse(all(sim.dat[c(sim.length+2-4):c(sim.length+2),2]==0),1,0)
   
   sims4[[i]]=sim.dat #store simulation
 }
 
-#summary of each scenario
+#Summaries & Figures####
 summary(sim.summary1) #baseline
 summary(sim.summary2) #all natural
 summary(sim.summary3) #broodtake
 summary(sim.summary4) #double hatchery
 
+par(mfrow=c(2,2))
+hist(sim.summary1$py.tspwn.100,main = 'Status quo',xlab='Prop. of years > 100 spawners',xlim=c(0,1))
+hist(sim.summary2$py.tspwn.100,main = 'No hatchery',xlab='Prop. of years > 100 spawners',xlim=c(0,1))
+hist(sim.summary3$py.tspwn.100,main = 'Broodtake program',xlab='Prop. of years > 100 spawners',xlim=c(0,1))
+hist(sim.summary4$py.tspwn.100,main = 'Doubled hatchery output',xlab='Prop. of years > 100 spawners',xlim=c(0,1))
+
+
+par(mfrow=c(2,2))
+hist(sim.summary1$py.tspwn.500,main = 'Status quo',xlab='Prop. of years > 500 spawners',xlim=c(0,1))
+hist(sim.summary2$py.tspwn.500,main = 'No hatchery',xlab='Prop. of years > 500 spawners',xlim=c(0,1))
+hist(sim.summary3$py.tspwn.500,main = 'Broodtake program',xlab='Prop. of years > 500 spawners',xlim=c(0,1))
+hist(sim.summary4$py.tspwn.500,main = 'Doubled hatchery output',xlab='Prop. of years > 500 spawners',xlim=c(0,1))
+
+sims1.df=dplyr::bind_rows(sims1)
+sims2.df=dplyr::bind_rows(sims2)
+sims3.df=dplyr::bind_rows(sims3)
+sims4.df=dplyr::bind_rows(sims4)
+
+library(dplyr)
+sims1.avg=sims1.df %>% group_by(sim.year) %>% summarize(m.spawners=median(spawners.t),l90.spawners=quantile(spawners.t,0.05),u90.spawners=quantile(spawners.t,0.95),l80.spawners=quantile(spawners.t,0.1),u80.spawners=quantile(spawners.t,0.9),l50.spawners=quantile(spawners.t,0.25),u50.spawners=quantile(spawners.t,0.75),main='Status quo')
+sims1.avg$brood.year=seq(2023,c(2023+nrow(sims1.avg)-1))
+sims2.avg=sims2.df %>% group_by(sim.year) %>% summarize(m.spawners=median(spawners.t),l90.spawners=quantile(spawners.t,0.05),u90.spawners=quantile(spawners.t,0.95),l80.spawners=quantile(spawners.t,0.1),u80.spawners=quantile(spawners.t,0.9),l50.spawners=quantile(spawners.t,0.25),u50.spawners=quantile(spawners.t,0.75),main='Status quo')
+sims2.avg$brood.year=seq(2023,c(2023+nrow(sims2.avg)-1))
+sims3.avg=sims3.df %>% group_by(sim.year) %>% summarize(m.spawners=median(spawners.t),l90.spawners=quantile(spawners.t,0.05),u90.spawners=quantile(spawners.t,0.95),l80.spawners=quantile(spawners.t,0.1),u80.spawners=quantile(spawners.t,0.9),l50.spawners=quantile(spawners.t,0.25),u50.spawners=quantile(spawners.t,0.75),main='Status quo')
+sims3.avg$brood.year=seq(2023,c(2023+nrow(sims3.avg)-1))
+sims4.avg=sims4.df %>% group_by(sim.year) %>% summarize(m.spawners=median(spawners.t),l90.spawners=quantile(spawners.t,0.05),u90.spawners=quantile(spawners.t,0.95),l80.spawners=quantile(spawners.t,0.1),u80.spawners=quantile(spawners.t,0.9),l50.spawners=quantile(spawners.t,0.25),u50.spawners=quantile(spawners.t,0.75),main='Status quo')
+sims4.avg$brood.year=seq(2023,c(2023+nrow(sims4.avg)-1))
+
+
+par(mfrow=c(2,2))
+plot(sims1.avg$m.spawners~sims1.avg$brood.year,type='l',lwd=3,ylim=c(0,1000),ylab='Estimated returning spawners',xlab='Simulation Year',main = 'Status quo')
+polygon(
+  c(sims1.avg$brood.year, rev(sims1.avg$brood.year)),           # x coordinates forward and back
+  c(sims1.avg$u90.spawners, rev(sims1.avg$l90.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.15),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims1.avg$brood.year, rev(sims1.avg$brood.year)),           # x coordinates forward and back
+  c(sims1.avg$u80.spawners, rev(sims1.avg$l80.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.3),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims1.avg$brood.year, rev(sims1.avg$brood.year)),           # x coordinates forward and back
+  c(sims1.avg$u50.spawners, rev(sims1.avg$l50.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.5),  # transparent fill
+  border = NA             # no border line
+)
+text(x=sims1.avg$brood.year[nrow(sims1.avg)-3],y=sims1.avg$u90.spawners[nrow(sims1.avg)-3],'90% CI')
+text(x=sims1.avg$brood.year[nrow(sims1.avg)-3],y=sims1.avg$u80.spawners[nrow(sims1.avg)-3],'80% CI')
+text(x=sims1.avg$brood.year[nrow(sims1.avg)-3],y=sims1.avg$u50.spawners[nrow(sims1.avg)-3],'50% CI')
+
+plot(sims2.avg$m.spawners~sims2.avg$brood.year,type='l',lwd=3,ylim=c(0,1000),ylab='Estimated returning spawners',xlab='Simulation Year',main = 'No hatchery')
+polygon(
+  c(sims2.avg$brood.year, rev(sims2.avg$brood.year)),           # x coordinates forward and back
+  c(sims2.avg$u90.spawners, rev(sims2.avg$l90.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.15),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims2.avg$brood.year, rev(sims2.avg$brood.year)),           # x coordinates forward and back
+  c(sims2.avg$u80.spawners, rev(sims2.avg$l80.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.3),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims2.avg$brood.year, rev(sims2.avg$brood.year)),           # x coordinates forward and back
+  c(sims2.avg$u50.spawners, rev(sims2.avg$l50.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.5),  # transparent fill
+  border = NA             # no border line
+)
+
+plot(sims3.avg$m.spawners~sims3.avg$brood.year,type='l',lwd=3,ylim=c(0,1000),ylab='Estimated returning spawners',xlab='Simulation Year',main = 'Broodtake')
+polygon(
+  c(sims3.avg$brood.year, rev(sims3.avg$brood.year)),           # x coordinates forward and back
+  c(sims3.avg$u90.spawners, rev(sims3.avg$l90.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.15),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims3.avg$brood.year, rev(sims3.avg$brood.year)),           # x coordinates forward and back
+  c(sims3.avg$u80.spawners, rev(sims3.avg$l80.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.3),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims3.avg$brood.year, rev(sims3.avg$brood.year)),           # x coordinates forward and back
+  c(sims3.avg$u50.spawners, rev(sims3.avg$l50.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.5),  # transparent fill
+  border = NA             # no border line
+)
+
+plot(sims4.avg$m.spawners~sims4.avg$brood.year,type='l',lwd=3,ylim=c(0,1000),ylab='Estimated returning spawners',xlab='Simulation Year',main = 'Doubled hatchery output')
+polygon(
+  c(sims4.avg$brood.year, rev(sims4.avg$brood.year)),           # x coordinates forward and back
+  c(sims4.avg$u90.spawners, rev(sims4.avg$l90.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.15),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims4.avg$brood.year, rev(sims4.avg$brood.year)),           # x coordinates forward and back
+  c(sims4.avg$u80.spawners, rev(sims4.avg$l80.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.3),  # transparent fill
+  border = NA             # no border line
+)
+polygon(
+  c(sims4.avg$brood.year, rev(sims4.avg$brood.year)),           # x coordinates forward and back
+  c(sims4.avg$u50.spawners, rev(sims4.avg$l50.spawners)),   # y upper then lower reversed
+  col = adjustcolor('darkgray',alpha.f=0.5),  # transparent fill
+  border = NA             # no border line
+)
